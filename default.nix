@@ -1,14 +1,14 @@
 { stdenv
 , fetchurl
-, curl
 , patchelf
+, pam
 }:
 
 let
-  rpath = stdenv.lib.makeLibraryPath [ stdenv.cc.cc curl ];
+  rpath = stdenv.lib.makeLibraryPath [ stdenv.cc.cc pam ];
 in
   stdenv.mkDerivation rec {
-    version = "2.0.3";
+    version = "11.1.2";
     name = "db2cli-${version}";
 
     src = fetchurl {
@@ -19,24 +19,27 @@ in
     unpackPhase = "tar xvzf $src";
 
     buildPhase = ''
-      runHook preBuild
+      chmod -R +w ./odbc_cli
+      cd ./odbc_cli/clidriver/bin
+      ls -lah ./db2cli
+      ldd ./db2cli
+      echo ""
+      rpath2=${rpath}:../lib
       patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" ./db2cli
-      patchelf --set-rpath "${rpath}" ./db2cli
-      find -type f -name "*.so" -exec patchelf --set-rpath "${rpath}" {} \;
-      echo "Hi mom!"
-      ./db2cli
-      runHook postBuild
+      patchelf --set-rpath $rpath2 ./db2cli
+      find -type f -name "*.so" -exec patchelf --set-rpath $rpath2 {} \;
+      ldd ./db2cli
     '';
 
-    dontPatchELF = true;
+    # dontPatchELF = true;
 
-    installPhase = ''
-      runHook preInstall
-      mkdir -p $out/bin
-      cp -r ./ $out
-      ln -s $out/dotnet $out/bin/dotnet
-      runHook postInstall
-    '';
+    # installPhase = ''
+    #   runHook preInstall
+    #   mkdir -p $out/bin
+    #   cp -r ./ $out
+    #   ln -s $out/dotnet $out/bin/dotnet
+    #   runHook postInstall
+    # '';
 
     meta = with stdenv.lib; {
       homepage = ibm.com;
